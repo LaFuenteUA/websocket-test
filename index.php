@@ -45,55 +45,36 @@
 </style>
 <script type="text/javascript">
 /*
-fetch vs jquery
-get my id and key
-send my id
+get my key
 signup message
-filter by id
 */
 
 const socketUrl = 'ws://lafuente.sb:3001';
 const httpUrl = 'http://lafuente.sb:3000';
 const redisUrl = 'http://lafuente.sb/call.php';
+
 let socket = null;
 let id = 1001;
 let client = null;
 let clients = [];
 
-$(document).ready( () => {
-	$('#b-connect').click( () => {
-		if(!socket) {
-			socket = new WebSocket(socketUrl);
-			socket.addEventListener("message", (msg) => {
-        parseMsg(msg.data);
-			});
-		}
-	});
-	$('#b-ws-send').click(() => {
-		if(socket && (msg = buildMsg())) {			
-			socket.send(JSON.stringify(msg));
-		}
-	});
-	$('#b-ps-send').click(() => {
-		if(msg = buildMsg()) {
-			$.post(httpUrl, {'data' : JSON.stringify(msg)}, () => {}, 'json');
-		}
-	});		
-	$('#b-bc-send').click(() => {
-		if(msg = buildMsg()) {
-			$.post(redisUrl,{'data' : JSON.stringify(msg)}, () => {}, 'json');
-		}
-	});	
-	$('#b-disconnect').click(() => {
-		if(socket) {
-			socket.close();
-      clearClient();
-			socket = null;
-			client = null;
-		}
-	});	
-  clearClient();
-});
+async function postUrl(url = '', data = {}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    mode: 'cors', // no-cors, *cors, same-origin
+    cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
+    credentials: 'same-origin', // include, *same-origin, omit
+    headers: {
+      'Content-Type': 'application/json',
+      // 'Content-Type': 'application/x-www-form-urlencoded'
+      "Accept":       "application/json"   // expected data sent back
+    },
+    redirect: 'follow', // manual, *follow, error
+    referrerPolicy: 'no-referrer', // no-referrer, *client
+    body: JSON.stringify(data) // body data type must match "Content-Type" header
+  });
+  return await response.json();
+}
 
 function buildMsg() {
 	if(msg = $('#msg-out').val()) {
@@ -147,4 +128,39 @@ function parseMsg(msg) {
     $('#msg-in').html(txt);
   }
 }
+
+$(document).ready( () => {
+	$('#b-connect').click( () => {
+		if(!socket) {
+			socket = new WebSocket(socketUrl);
+			socket.addEventListener("message", (msg) => {
+        parseMsg(msg.data);
+			});
+		}
+	});
+	$('#b-ws-send').click(() => {
+		if(socket && (msg = buildMsg())) {			
+			socket.send(JSON.stringify(msg));
+		}
+	});
+	$('#b-ps-send').click(() => {
+		if(msg = buildMsg()) {
+      postUrl(httpUrl, msg);
+		}
+	});		
+	$('#b-bc-send').click(() => {
+		if(msg = buildMsg()) {
+      postUrl(redisUrl, msg);
+		}
+	});	
+	$('#b-disconnect').click(() => {
+		if(socket) {
+			socket.close();
+      clearClient();
+			socket = null;
+			client = null;
+		}
+	});	
+  clearClient();
+});
 </script>

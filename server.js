@@ -18,6 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 const MAX_SOCKETS = 100;
 const urlencodedParser = express.urlencoded({extended: false});
+const jsonParser = express.json();
 let sockets = [];
 let socket_idx = 1;
 
@@ -69,7 +70,6 @@ function userlist() {
   emitMessage({'id':0, 'clients':list, 'message':'Userlist','hide':true}, 2);
 }
 
-
 function emitMessage(message, chan) {
   if(typeof message == 'string') {
     try {
@@ -90,17 +90,15 @@ function emitMessage(message, chan) {
 
 app.get('/', (req, res) => {
   let parsed = url.parse(req.url, true);
-  // emitMessage({"client":0,"id": parsed.query.id,"message": parsed.query.message}, 'HTTP GET');
-  emitMessage(parsed.query, 'HTTP GET');
-  res.end();
+  emitMessage({"client":0,"id": parsed.query.id,"message": parsed.query.message}, 'HTTP GET');
+  res.end('{}');
 });
 
-app.post('/', urlencodedParser, (req, res) => {
-  if(req.body) { //  && req.body.id && req.body.message) {
-    // emitMessage({"client":0,"id": req.body.id,"message": req.body.message}, 'HTTP POST');
-    console.log(req.body.data.list);
-    emitMessage(req.body.data, 'HTTP POST');
-    res.end();
+app.post('/', jsonParser, (req, res) => {
+  if(req.body) {
+    console.log(JSON.stringify(req.body));
+    emitMessage(req.body, 'HTTP POST');
+    res.end('{}');
   }
   else {
     res.sendStatus(400);
