@@ -96,7 +96,6 @@ app.get('/', (req, res) => {
 
 app.post('/', jsonParser, (req, res) => {
   if(req.body) {
-    console.log(JSON.stringify(req.body));
     emitMessage(req.body, 'HTTP POST');
     res.end('{}');
   }
