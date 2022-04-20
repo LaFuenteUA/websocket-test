@@ -15,8 +15,7 @@ let socket;
 let id = 1001;
 $(document).ready(function() {
 	$('#lunch').click(function() {
-		let data = {'id': id, 'msg' : $('#msg').val()};
-		id++;
+		let data = {'id': id++, 'msg' : $('#msg').val()};
 		$.post('http://lafuente.sb/call.php',data,() => {}, 'json');
 	});
 });
