@@ -18,6 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 const MAX_SOCKETS = 100;
 const urlencodedParser = express.urlencoded({extended: false});
+const jsonParser = express.json();
 let sockets = [];
 let socket_idx = 1;
 
@@ -31,14 +32,17 @@ io.on('connection', (socket) => {
   let ssk = pushSocket(socket);
   if(ssk) {
     console.log('User connected. Socket id: ' + ssk.id);
+    emitMessage({'id':ssk.id,'list':[ssk.id],'message':'Connected','hide':true}, 1);
     socket.on('close', () => {
       killSocket(ssk);
       console.log('User disconnected. Socket id: ' + ssk.id);
+      userlist();
     });
 
     socket.on('message', (message) => {
-      emitMessage('' + message, 'WebSocket id: ' + ssk.id + ' ');
+      emitMessage(message.toString(), 'WebSocket id: ' + ssk.id + ' ');
     });
+    userlist();
   }
   else {
     killSocket(ssk);
@@ -48,9 +52,9 @@ io.on('connection', (socket) => {
 
 function pushSocket(socket) {
   if(sockets.length < MAX_SOCKETS) {
-    console.log('Total sockets now: ' + (1 + sockets.length));
     let ssk = {"socket": socket, "id" : socket_idx++};
     sockets.push(ssk);
+    console.log('Total sockets now: ' + sockets.length);    
     return ssk;
   }
   return null;
@@ -60,23 +64,40 @@ function killSocket(ssk) {
   sockets = sockets.filter(sk => sk.id !== ssk.id);
 }
 
+function userlist() {
+  let list = [];
+  sockets.forEach(ssk => list.push(ssk.id));
+  emitMessage({'id':0, 'clients':list, 'message':'Userlist','hide':true}, 2);
+}
+
 function emitMessage(message, chan) {
-  message = JSON.parse(message);
-  let txt = chan + ' message no ' + message.id + ' received: ' + message.message;
+  if(typeof message == 'string') {
+    try {
+      message = JSON.parse(message);
+    } catch(err) {
+      message = {"id":0,"message":"JSON parse error"};
+    }
+  }
+  message.channel = chan;
+  let txt = message.channel + ' message no ' + message.id + ' received: ' + message.message;
 	console.log(txt);
-  sockets.forEach(ssk => ssk.socket.send(txt));
+  sockets.forEach((ssk) => {
+    if(!(message.list && message.list.length) || message.list.includes(ssk.id)) {
+      ssk.socket.send(JSON.stringify(message));
+    }
+  });
 }
 
 app.get('/', (req, res) => {
   let parsed = url.parse(req.url, true);
-  emitMessage(JSON.stringify({"id": parsed.query.id,"message": parsed.query.message}), 'HTTP GET');
-  res.end();
+  emitMessage({"client":0,"id": parsed.query.id,"message": parsed.query.message}, 'HTTP GET');
+  res.end('{}');
 });
 
-app.post('/', urlencodedParser, (req, res) => {
-  if(req.body && req.body.id && req.body.message) {
-    emitMessage(JSON.stringify({"id": req.body.id,"message": req.body.message}), 'HTTP POST');
-    res.end();
+app.post('/', jsonParser, (req, res) => {
+  if(req.body) {
+    emitMessage(req.body, 'HTTP POST');
+    res.end('{}');
   }
   else {
     res.sendStatus(400);
