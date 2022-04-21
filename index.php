@@ -5,6 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>socket test</title>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <script src="/node_modules/vue/dist/vue.global.js"></script>
+		<link href="/css/bs.css" rel="stylesheet">
+		<link href="/css/local.css" rel="stylesheet">    
     </head>
     <body>
 		<div id="app">
@@ -31,18 +35,6 @@
 		</div>
     </body>
 </html>	
-<style>
-  body { font-family: arial }
-	button { margin-top: 10px; width: 100% }
-	#app { text-align: center; width: 400px; margin: 20px auto auto auto; }
-	#msg-out { margin-top: 10px; width: 100%; height: 30px }
-	#msg-in { margin-top: 10px; padding: 4px; border: 1px solid black; width: 100%; height: 60px; text-align: left }
-  #tbl {width: 100% }
-  #cnx { padding: 4px; border: 0; width: 100%; height: 20px; text-align: left }
-  #panel { text-align: center; width: 80% }
-  #clientlist { width: 20%; vertical-align: top; padding: 10px; text-align: left }
-  .v-list-current {color: blue }
-</style>
 <script type="text/javascript">
 /*
 get my key
