@@ -8,5 +8,5 @@ body { font-family: arial }
 .user-bar { height: 100% }
 td.channel { padding: 0 5px 0 5px; background-color: burlywood; color :red; text-align: left }
 td.client { padding: 0 5px 0 5px; background-color: cadetblue; color :blue; text-align: right }
-td.client-id { padding: 0 5px 0 5px; background-color: cadetblue; color :darkgreen; text-align: left }
+td.client-id { padding: 0 5px 0 5px; background-color: cadetblue; color :darkgreen; text-align: left  }
 td.message { padding: 0 5px 0 5px; text-align: left }

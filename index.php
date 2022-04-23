@@ -142,7 +142,7 @@ const wsTalker = {
         id : Number(user.id),
         name : user.name ?? 'anonymus',
         active : user.active ? true : false,
-        bar : Number(user.bar ? Math.min(100, user.bar) : 100)
+        bar : Number(user.bar ? Math.min(100, user.bar) : 100),
       });
     },
     toggleConnect() {

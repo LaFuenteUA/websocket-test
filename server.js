@@ -19,6 +19,7 @@ app.use(cors(corsOptions));
 const MAX_SOCKETS = 100;
 const urlencodedParser = express.urlencoded({extended: false});
 const jsonParser = express.json();
+
 let sockets = [];
 let socket_idx = 1;
 

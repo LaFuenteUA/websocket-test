@@ -26,7 +26,7 @@ let apiParam = {
     name : 'Redis Broadcast',
     url : 'http://lafuente.sb/call.php',
     active : false
-  }]
+  },]
 };
 
 async function postUrl(url = '', data = {}) {
