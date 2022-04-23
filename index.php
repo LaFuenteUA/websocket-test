@@ -79,7 +79,7 @@ const wsTalker = {
       username : '',
       users : [],
       message : '',
-      chat : []
+      chat : [],
     };
   },
   computed: {
