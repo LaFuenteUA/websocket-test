@@ -1,158 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>socket test</title>
-		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <script src="/node_modules/vue/dist/vue.global.js"></script>
-		<link href="/css/bs.css" rel="stylesheet">
-		<link href="/css/local.css" rel="stylesheet">    
-    </head>
-    <body>
-		<div id="app">
-      <table id="tbl">
-        <tr>
-          <td id="panel" colspan="2">
-            <div id="cnx"></div>
-          </td>
-        </tr>
-        <tr>
-          <td id="panel">
-            <div id="msg-in"></div>
-            <input type="text" id="msg-out" placeholder="Type here"></input>
-            <button id="b-connect">WS Connect</button>
-            <button id="b-disconnect">WS Disconnect</button>
-            <button id="b-ws-send">WS Message</button>
-            <button id="b-bc-send">Broadcast Message</button>
-            <button id="b-ps-send">Http Message</button>
-          </td>
-          <td id="clientlist">
-          </td>
-        </tr>
-      </table>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>socket test</title>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/js/bootstrap.min.js"></script>
+  <script src="/node_modules/vue/dist/vue.global.js"></script>
+  <link href="/css/bs.css" rel="stylesheet">
+  <link href="/css/local.css" rel="stylesheet">    
+</head>
+<body>
+  <div id="app">
+		<div class="container">
+      <div class="col-lg-12">
+        <h2 id="cnx">{{ connectedStatus }}</h2>
+      </div>
+      <div class="col-lg-3" id="clientlist" v-if="users.length">
+        <div>
+          <input @click="toggleUser(null)" type="checkbox" :checked="allUsersActive"/> To all
+        </div><br/>
+        <table>
+          <template v-for="user in users">
+            <tr>
+              <td><input @click="toggleUser(user)" type="checkbox" :checked="user.active"/></td>
+              <td>{{ user.id }}</td>
+              <td>{{ user.name }}</td>
+              <td width="100">
+                <div class="user-bar" :style="getUserBarStyle(user)">&nbsp</div>
+              </td>
+            </tr>
+          </template>
+        </table>
+      </div>
+      <div class="col-lg-9">
+        <div class="form-group">
+		      <label for="msg-in" class="sr-only"></label>
+		      <textarea v-model="chat" class="form-control" id="msg-in" placeholder="Chat will be here" readonly></textarea>
+		    </div>
+        <div class="form-group">
+		      <label for="msg-out" class="sr-only"></label>
+		      <input v-model="msg" type="text" class="form-control" id="msg-out" placeholder="Type here"/>
+		    </div>
+        <div class="form-group col-lg-12">
+          <button @click="toggleConnect" class="form-control btn btn-success">{{ toDoConnect }}</button>
+        </div>        
+        <template v-for="sender in senders">
+          <div class="form-group col-lg-4">
+            <button @click="sendMsg(sender)" class="form-control btn btn-success">Send by {{ sender.name }}</button>
+          </div>
+        </template>
+      </div>
 		</div>
-    </body>
+  </div>
+</body>
 </html>	
-<script type="text/javascript">
-/*
-get my key
-signup message
-*/
-
-const socketUrl = 'ws://lafuente.sb:3001';
-const httpUrl = 'http://lafuente.sb:3000';
-const redisUrl = 'http://lafuente.sb/call.php';
-
-let socket = null;
-let id = 1001;
-let client = null;
-let clients = [];
-
-async function postUrl(url = '', data = {}) {
-  const response = await fetch(url, {
-    method: 'POST',
-    mode: 'cors', // no-cors, *cors, same-origin
-    cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
-    credentials: 'same-origin', // include, *same-origin, omit
-    headers: {
-      'Content-Type': 'application/json',
-      // 'Content-Type': 'application/x-www-form-urlencoded'
-      "Accept":       "application/json"   // expected data sent back
+<script type="module">
+import { apiGetSenders, apiConnect, apiDisconnect, apiSend } from "./api.js";
+const wsTalker = {
+  name: "App",
+  data() {
+    return {
+      connected : false,
+      users : [],
+      msg : '',
+      chat : ''
+    };
+  },
+  computed: {
+    allUsersActive() {
+      let total = true;
+      this.users.forEach((user) => { 
+        if(!user.active) {
+          total = false;
+        }
+      });
+      return total;
     },
-    redirect: 'follow', // manual, *follow, error
-    referrerPolicy: 'no-referrer', // no-referrer, *client
-    body: JSON.stringify(data) // body data type must match "Content-Type" header
-  });
-  return await response.json();
-}
-
-function buildMsg() {
-	if(msg = $('#msg-out').val()) {
-		$('#msg-out').val('');
-    let list = [];
-    $('.v-list:checked').each(function (idx) {
-      list.push(Number($(this).attr('v-client')));
-    });
-		return {"client" : client, "id": id++, "message" : msg, 'list' : list};
-	}
-	return null;
-}
-
-function setClient(id) {
-  client = id;
-  $('#cnx').html('Connected. ID: ' + client);
-}
-
-function clearClient() {
-  client = null;
-  $('#cnx').html('Disconnected');
-  $('#clientlist').html('');
-}
-
-function setClients(list) {
-  let html = '';
-  list.forEach((id) => {
-    html += '<input type="checkbox" class="v-list';
-    if(id == client) {
-      html += ' v-list-current'
+    connectedStatus() {
+      return this.connected ? 'Connected' : 'Offline';
+    },
+    toDoConnect() {
+      return this.connected ? 'Disconnect' : 'Connect';
+    },
+    senders() {
+      return apiGetSenders();
     }
-    html += ('" v-client="' + id + '"> ' + id + '<br/>');
-  });
-  $('#clientlist').html(html);
-}
-
-function parseMsg(msg) {
-  let data = JSON.parse(msg);
-  let txt = 'Channel: ' + data.channel + '<br/>ID: ' + data.id + '<br/>Text: ' + data.message;
-  if(Number.isInteger(data.channel)) {
-    switch(data.channel) {
-      case 1:     // Client ID after connect to WS
-        setClient(data.id);
-        break;
-      case 2:     // Active clients list
-        setClients(data.clients);
-        break;
+  },
+  mounted() {
+    this.userAdd({id : 99, name : 'Piggy', active : false, bar: 75});
+    this.userAdd({id : 98, name : 'Figgy', active : true, bar: 100});
+    this.userAdd({id : 95, name : 'Diggy', active : true, bar: 20});
+    setInterval(async () => {
+      await this.users.forEach((user) => {
+        user.bar = (user.bar > 0) ? (user.bar-0.05) : 0;
+      });          
+    }, 50);
+  },
+  beforeUnmount() {
+    apiDisconnect();
+  },
+  created() {  
+  },
+  methods: {  
+    message(apiData) {
+      this.chat = apiData.message.message;
+    },
+    sendMsg(sender) {
+      let list = [];
+      this.users.forEach((user) => {
+        list.push(user.id);
+      });
+      apiSend(sender, this.msg, list);
+      this.chat = '';
+    },
+    userAdd(user) {
+      this.users.push({
+        id : Number(user.id),
+        name : user.name ?? 'anonymus',
+        active : user.active ? true : false,
+        bar : Number(user.bar ? Math.min(100, user.bar) : 100)
+      });
+    },
+    toggleConnect() {
+      if(this.connected = !this.connected) {
+        apiConnect();
+      } else {
+        apiDisconnect();
+      }
+    },
+    toggleUser(user) {
+      if(user) {
+        user.active = !user.active;
+      } else {
+        let sts = this.allUsersActive ? false : true;
+        this.users.forEach((user) => { user.active = sts; });
+      }
+    },
+    getUserBarStyle(user) {
+      return { 
+        width : user.bar + '%',
+        backgroundColor : 'rgb(' + (55+2*user.bar) + ', 0, ' + (255-2*user.bar) + ')'
+      };
     }
+  },
+  watch: {
   }
-  if(!data.hide) {
-    $('#msg-in').html(txt);
-  }
-}
-
-$(document).ready( () => {
-	$('#b-connect').click( () => {
-		if(!socket) {
-			socket = new WebSocket(socketUrl);
-			socket.addEventListener("message", (msg) => {
-        parseMsg(msg.data);
-			});
-		}
-	});
-	$('#b-ws-send').click(() => {
-		if(socket && (msg = buildMsg())) {			
-			socket.send(JSON.stringify(msg));
-		}
-	});
-	$('#b-ps-send').click(() => {
-		if(msg = buildMsg()) {
-      postUrl(httpUrl, msg);
-		}
-	});		
-	$('#b-bc-send').click(() => {
-		if(msg = buildMsg()) {
-      postUrl(redisUrl, msg);
-		}
-	});	
-	$('#b-disconnect').click(() => {
-		if(socket) {
-			socket.close();
-      clearClient();
-			socket = null;
-			client = null;
-		}
-	});	
-  clearClient();
-});
+};
+Vue.createApp(wsTalker).mount('#app');
 </script>
