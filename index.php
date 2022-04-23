@@ -36,13 +36,27 @@
       <div class="col-lg-9">
         <div class="form-group">
 		      <label for="msg-in" class="sr-only"></label>
-		      <textarea v-model="chat" class="form-control" id="msg-in" placeholder="Chat will be here" readonly></textarea>
+		      <div id="chat">
+            <table>
+            <template v-for="msg in chat">
+              <tr>
+                <td class="channel">{{ msg.channel }}</td>
+                <td class="client">{{ msg.client_name }}</td>
+                <td class="client-id">[{{ msg.client }}]:</td>
+                <td class="message">{{ msg.message }}</td>
+              </tr>
+            </template>
+            </table>
+        </div>
 		    </div>
         <div class="form-group">
 		      <label for="msg-out" class="sr-only"></label>
-		      <input v-model="msg" type="text" class="form-control" id="msg-out" placeholder="Type here"/>
+		      <input v-model="message" type="text" class="form-control" id="msg-out" placeholder="Type here"/>
 		    </div>
-        <div class="form-group col-lg-12">
+        <div class="form-group col-lg-8">
+		      <input v-model="username" type="text" class="form-control" placeholder="User name" :readonly="connected"/>
+		    </div>        
+        <div class="form-group col-lg-4">
           <button @click="toggleConnect" class="form-control btn btn-success">{{ toDoConnect }}</button>
         </div>        
         <template v-for="sender in senders">
@@ -62,9 +76,10 @@ const wsTalker = {
   data() {
     return {
       connected : false,
+      username : '',
       users : [],
-      msg : '',
-      chat : ''
+      message : '',
+      chat : []
     };
   },
   computed: {
@@ -89,8 +104,11 @@ const wsTalker = {
   },
   mounted() {
     this.userAdd({id : 99, name : 'Piggy', active : false, bar: 75});
-    this.userAdd({id : 98, name : 'Figgy', active : true, bar: 100});
-    this.userAdd({id : 95, name : 'Diggy', active : true, bar: 20});
+    this.userAdd({id : 98, name : 'Figgy', active : true,  bar: 100});
+    this.userAdd({id : 95, name : 'Diggy', active : true,  bar: 20});
+    this.chatAdd({channel : 'http',   client_name : 'Simon', client : 87, message : 'Hello!'});
+    this.chatAdd({channel : 'redis',  client_name : 'Voron', client : 17, message : 'Hello all!'});
+    this.chatAdd({channel : 'socket', client_name : 'Kelly', client : 34, message : 'Hello here!'});
     setInterval(async () => {
       await this.users.forEach((user) => {
         user.bar = (user.bar > 0) ? (user.bar-0.05) : 0;
@@ -103,16 +121,21 @@ const wsTalker = {
   created() {  
   },
   methods: {  
-    message(apiData) {
-      this.chat = apiData.message.message;
+    receiveMessage(apiData) {
+      this.chatAdd(apiData.message);
     },
     sendMsg(sender) {
       let list = [];
       this.users.forEach((user) => {
         list.push(user.id);
       });
-      apiSend(sender, this.msg, list);
-      this.chat = '';
+      apiSend(sender, this.message, list);
+      this.message = '';
+    },
+    chatAdd(msg) {
+      this.chat.push(msg);
+      if(this.chat.length > 10)
+        this.chat.shift();
     },
     userAdd(user) {
       this.users.push({
@@ -124,9 +147,10 @@ const wsTalker = {
     },
     toggleConnect() {
       if(this.connected = !this.connected) {
-        apiConnect();
+        apiConnect(this.username, this.receiveMessage);
       } else {
         apiDisconnect();
+        this.username = '';
       }
     },
     toggleUser(user) {

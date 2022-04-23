@@ -4,5 +4,9 @@ body { font-family: arial }
 #cnx { padding: 4px; border: 0; width: 100%; height: 20px; text-align: left }
 #panel { text-align: center; width: 80% }
 #clientlist { vertical-align: top; padding: 10px; text-align: left }
-.v-list-current {color: rgb(255, 0, 0) }
-.user-bar {height: 100% }
+.v-list-current { color: rgb(255, 0, 0) }
+.user-bar { height: 100% }
+td.channel { padding: 0 5px 0 5px; background-color: burlywood; color :red; text-align: left }
+td.client { padding: 0 5px 0 5px; background-color: cadetblue; color :blue; text-align: right }
+td.client-id { padding: 0 5px 0 5px; background-color: cadetblue; color :darkgreen; text-align: left }
+td.message { padding: 0 5px 0 5px; text-align: left }

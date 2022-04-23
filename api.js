@@ -1,6 +1,7 @@
 let apiData = {
   id : 1001,
   client : null,
+  name : '',
   clients : [],
   message : null,
   error_id : 0,
@@ -50,14 +51,14 @@ function parseMsg(msg) {
   if(Number.isInteger(msgData.channel)) {
     switch(msgData.channel) {
       case 1:     // Client ID after connect to WS
-        apiData.client = id;
+        apiData.client = msgData.id;
         break;
       case 2:     // Active clients list
-        apiData.clients = list;
+        apiData.clients = msgData.clients;
         break;
     }
   }
-  apiData.message = data;
+  apiData.message = msgData;
   apiParam.observer(apiData);
 }
 
@@ -78,9 +79,10 @@ export const apiSend = (sender, msg, list) => {
   }
 };
 
-export const apiConnect = (observer) => {
-  if(!apiData.socket) {
-    apiData.socket = new WebSocket(apiParam.senders[0].url);
+export const apiConnect = (name, observer) => {
+  if(!apiParam.socket) {
+    apiParam.socket = new WebSocket(apiParam.senders[0].url);
+    apiData.name = name;
     apiParam.observer = observer;
     apiParam.socket.addEventListener("message", (msg) => {
       parseMsg(msg.data);
