@@ -65,8 +65,7 @@ io.on('connection', (socket) => {
     socket.on('message', (message) => {
       processMessage(message.toString(), 'WebSocket');
     });
-
-    // clientsList();
+    
   } else {
     socket.destroy();
     console.log('Too much sockets. Disconnected');
