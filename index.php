@@ -16,18 +16,19 @@
       <div class="col-lg-12">
         <h2 id="cnx">{{ connectedStatus }}</h2>
       </div>
-      <div class="col-lg-3" id="clientlist" v-if="users.length">
-        <div>
-          <input @click="toggleUser(null)" type="checkbox" :checked="allUsersActive"/> To all
-        </div><br/>
+      <div class="col-lg-3" id="clientlist" v-if="clients.size">
         <table>
-          <template v-for="user in users">
+          <tr>
+            <td class="minitab"> <input @click="toggleClient(null)" type="checkbox" :checked="allClientsActive"/></td>
+            <td class="minitab"><b>ALL</b></td>
+          </tr>
+          <template v-for="(client, index) in clientsList">
             <tr>
-              <td><input @click="toggleUser(user)" type="checkbox" :checked="user.active"/></td>
-              <td>{{ user.id }}</td>
-              <td>{{ user.name }}</td>
-              <td width="100">
-                <div class="user-bar" :style="getUserBarStyle(user)">&nbsp</div>
+              <td class="minitab"><input @click="toggleClient(index)" type="checkbox" :checked="client.active"/></td>
+              <td class="minitab">{{ index }}</td>
+              <td :class="[(currentClient == index) ? 'minitab-hi' : 'minitab']">{{ client.name }}</td>
+              <td class="minitab" style="width : 250px">
+                <div class="user-bar" :style="getClientBarStyle(index)">&nbsp</div>
               </td>
             </tr>
           </template>
@@ -40,10 +41,9 @@
             <table>
             <template v-for="msg in chat">
               <tr>
-                <td class="channel">{{ msg.channel }}</td>
-                <td class="client">{{ msg.client_name }}</td>
-                <td class="client-id">[{{ msg.client }}]:</td>
-                <td class="message">{{ msg.message }}</td>
+                <td class="minitab channel">{{ msg.channel }}</td>            
+                <td class="minitab client">[{{ msg.client }}]: {{ msg.client_name }}</td>
+                <td class="minitab message">{{ msg.message }}</td>
               </tr>
             </template>
             </table>
@@ -70,27 +70,30 @@
 </body>
 </html>	
 <script type="module">
-import { apiGetSenders, apiConnect, apiDisconnect, apiSend } from "./api.js";
+import { apiGetSenders, apiGetClient, apiConnect, apiDisconnect, apiSend } from "./api.js";
 const wsTalker = {
   name: "App",
   data() {
     return {
       connected : false,
       username : '',
-      users : [],
+      clients : new Map(),
       message : '',
       chat : [],
     };
   },
   computed: {
-    allUsersActive() {
+    allClientsActive() {
       let total = true;
-      this.users.forEach((user) => { 
-        if(!user.active) {
+      this.clients.forEach((client) => { 
+        if(!client.active) {
           total = false;
         }
       });
       return total;
+    },
+    clientsList() {
+      return Object.fromEntries(this.clients);
     },
     connectedStatus() {
       return this.connected ? 'Connected' : 'Offline';
@@ -100,20 +103,24 @@ const wsTalker = {
     },
     senders() {
       return apiGetSenders();
+    },
+    currentClient() {
+      return apiGetClient();
     }
   },
   mounted() {
-    this.userAdd({id : 99, name : 'Piggy', active : false, bar: 75});
-    this.userAdd({id : 98, name : 'Figgy', active : true,  bar: 100});
-    this.userAdd({id : 95, name : 'Diggy', active : true,  bar: 20});
+    /*
+    this.clientAdd({id : 99, name : 'Piggy', active : false, bar: 75});
+    this.clientAdd({id : 98, name : 'Figgy', active : true,  bar: 100});
+    this.clientAdd({id : 95, name : 'Diggy', active : true,  bar: 20});
     this.chatAdd({channel : 'http',   client_name : 'Simon', client : 87, message : 'Hello!'});
-    this.chatAdd({channel : 'redis',  client_name : 'Voron', client : 17, message : 'Hello all!'});
-    this.chatAdd({channel : 'socket', client_name : 'Kelly', client : 34, message : 'Hello here!'});
+    */
     setInterval(async () => {
-      await this.users.forEach((user) => {
-        user.bar = (user.bar > 0) ? (user.bar-0.05) : 0;
+      await this.clients.forEach((client) => {
+        client.bar -= ((client.bar > 0) ? 0.1 : 0);
       });          
-    }, 50);
+    }, 500);
+    
   },
   beforeUnmount() {
     apiDisconnect();
@@ -121,13 +128,47 @@ const wsTalker = {
   created() {  
   },
   methods: {  
-    receiveMessage(apiData) {
-      this.chatAdd(apiData.message);
+    receiveMessage(messageData) {
+      let allowChat = true;
+      if(messageData.command)
+      {
+        switch(messageData.command) {
+          case 'clients':     // Clients list
+            allowChat = false;
+            if(typeof messageData.message == 'object') {
+              this.applyClientsList(messageData.message);
+            }
+            break;
+          // to be continue ...
+        }
+      }
+      if(allowChat) {
+        this.chatAdd({
+          channel : messageData.channel[0],
+          client : messageData.client,
+          client_name : this.clients.get(messageData.client).name,
+          message : messageData.message});
+        this.updateClientBar(messageData.client);
+      }    
+    },
+    applyClientsList(list) {
+      let actives = [];
+      this.clients.forEach((client, idx) => {
+        if(client.active) {
+          actives.push(idx);
+        }
+      });
+      this.clients.clear();
+      list.forEach((client) => {
+        this.clients.set(client.id,{name : client.name, bar: 0, active : actives.includes(Number(client.id))});
+      });
     },
     sendMsg(sender) {
       let list = [];
-      this.users.forEach((user) => {
-        list.push(user.id);
+      this.clients.forEach((client, idx) => {
+        if(client.active) {
+          list.push(idx);
+        }
       });
       apiSend(sender, this.message, list);
       this.message = '';
@@ -137,13 +178,8 @@ const wsTalker = {
       if(this.chat.length > 10)
         this.chat.shift();
     },
-    userAdd(user) {
-      this.users.push({
-        id : Number(user.id),
-        name : user.name ?? 'anonymus',
-        active : user.active ? true : false,
-        bar : Number(user.bar ? Math.min(100, user.bar) : 100),
-      });
+    clientAdd(client) {
+      this.clients.set(Number(client.id), client.name ?? 'anonymus');
     },
     toggleConnect() {
       if(this.connected = !this.connected) {
@@ -151,20 +187,26 @@ const wsTalker = {
       } else {
         apiDisconnect();
         this.username = '';
+        this.clients.clear();
+        this.chat = [];
       }
     },
-    toggleUser(user) {
-      if(user) {
-        user.active = !user.active;
+    toggleClient(client_id) {
+      client_id = Number(client_id);
+      if(client_id) {
+        this.clients.get(client_id).active = !this.clients.get(client_id).active;
       } else {
-        let sts = this.allUsersActive ? false : true;
-        this.users.forEach((user) => { user.active = sts; });
+        let sts = !this.allClientsActive;
+        this.clients.forEach((clnt) => { clnt.active = sts; });
       }
     },
-    getUserBarStyle(user) {
+    updateClientBar(client) {
+      this.clients.get(client).bar = 100;
+    },
+    getClientBarStyle(client) {
       return { 
-        width : user.bar + '%',
-        backgroundColor : 'rgb(' + (55+2*user.bar) + ', 0, ' + (255-2*user.bar) + ')'
+        width : this.clients.get(Number(client)).bar + '%',
+        backgroundColor : 'blue'
       };
     }
   },

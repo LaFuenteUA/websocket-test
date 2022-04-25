@@ -2,13 +2,6 @@ let apiData = {
   id : 1001,
   client : null,
   name : '',
-  clients : [],
-  message : null,
-  error_id : 0,
-  error : ''
-};
-
-let apiParam = {
   socket : null,
   observer : null,
   senders : [{
@@ -37,7 +30,7 @@ async function postUrl(url = '', data = {}) {
     credentials: 'same-origin', // include, *same-origin, omit
     headers: {
       'Content-Type': 'application/json',  // or 'application/x-www-form-urlencoded'
-      "Accept":       'application/json'   // expected data sent back
+      'Accept':       'application/json'   // expected data sent back
     },
     redirect: 'follow', // manual, *follow, error
     referrerPolicy: 'no-referrer', // no-referrer, *client
@@ -48,30 +41,47 @@ async function postUrl(url = '', data = {}) {
 
 function parseMsg(msg) {
   let msgData = JSON.parse(msg);
-  if(Number.isInteger(msgData.channel)) {
-    switch(msgData.channel) {
-      case 1:     // Client ID after connect to WS
-        apiData.client = msgData.id;
-        break;
-      case 2:     // Active clients list
-        apiData.clients = msgData.clients;
-        break;
-    }
+  let allowObserve = true;
+  console.log(JSON.stringify(msgData));
+  switch(msgData.command) {
+    case 'set_id':     // Client ID after connect to WS
+      allowObserve = false;
+      apiData.client = msgData.id;
+      console.log('ok');
+      apiSend(apiData.senders[0], apiData.name, null, 'set_name');
+      break;
+    case 'error':
+      if(msgData.hide) {
+        allowObserve = false;
+      }
+      break;
+    // to be continue ...
   }
-  apiData.message = msgData;
-  apiParam.observer(apiData);
+  if(allowObserve) {
+    apiData.observer(msgData);
+  }
 }
 
-export const apiGetSenders = () => {
-  return apiParam.senders;
+export const apiGetClient = () => {
+  return apiData.client;
 };
 
-export const apiSend = (sender, msg, list) => {
-  if(sender && apiParam.socket && apiData.client) {
-    let message = {"client" : apiData.client, "id" : apiData.id++, "message" : msg, 'list' : list};
+export const apiGetSenders = () => {
+  return apiData.senders;
+};
+
+export const apiSend = (sender, msg, list = null, command = null) => {
+  if(sender && apiData.socket && apiData.client) {
+    let message = {
+      command : command,
+      client : apiData.client, 
+      id : apiData.id++, 
+      message : msg, 
+      list : list,
+    };
     switch(sender.id) {
       case 0:   // by Web Socket
-        apiParam.socket.send(JSON.stringify(message));
+        apiData.socket.send(JSON.stringify(message));
         break;
       default:  // by HTTP or Redis
         postUrl(sender.url, message);
@@ -80,22 +90,21 @@ export const apiSend = (sender, msg, list) => {
 };
 
 export const apiConnect = (name, observer) => {
-  if(!apiParam.socket) {
-    apiParam.socket = new WebSocket(apiParam.senders[0].url);
+  if(!apiData.socket) {
+    apiData.socket = new WebSocket(apiData.senders[0].url);
     apiData.name = name;
-    apiParam.observer = observer;
-    apiParam.socket.addEventListener("message", (msg) => {
+    apiData.observer = observer;
+    apiData.socket.addEventListener('message', (msg) => {
       parseMsg(msg.data);
     });
   }
 };
 
 export const apiDisconnect = () => {
-  if(apiParam.socket) {
-    apiParam.socket.close();
-    apiParam.socket = null;
+  if(apiData.socket) {
+    apiData.socket.close();
+    apiData.socket = null;
     apiData.client = null;
-    apiData.clients = [];
-    apiParam.observer = null;
+    apiData.observer = null;
   }
 };
