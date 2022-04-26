@@ -42,12 +42,10 @@ async function postUrl(url = '', data = {}) {
 function parseMsg(msg) {
   let msgData = JSON.parse(msg);
   let allowObserve = true;
-  console.log(JSON.stringify(msgData));
   switch(msgData.command) {
     case 'set_id':     // Client ID after connect to WS
       allowObserve = false;
       apiData.client = msgData.id;
-      console.log('ok');
       apiSend(apiData.senders[0], apiData.name, null, 'set_name');
       break;
     case 'error':
@@ -97,6 +95,12 @@ export const apiConnect = (name, observer) => {
     apiData.socket.addEventListener('message', (msg) => {
       parseMsg(msg.data);
     });
+    apiData.socket.addEventListener('close', () => {
+      apiData.observer({command:'close'});
+    }); 
+    apiData.socket.addEventListener('error', () => {
+      apiData.observer({command:'close'});
+    });        
   }
 };
 

@@ -51,17 +51,17 @@
 		    </div>
         <div class="form-group">
 		      <label for="msg-out" class="sr-only"></label>
-		      <input v-model="message" type="text" class="form-control" id="msg-out" placeholder="Type here"/>
+		      <input v-model="message" type="text" class="form-control" id="msg-out" placeholder="Type here" v-show="connected"/>
 		    </div>
         <div class="form-group col-lg-8">
-		      <input v-model="username" type="text" class="form-control" placeholder="User name" :readonly="connected"/>
+		      <input v-model="username" type="text" class="form-control" placeholder="User name to connect (4 chars min.)" :readonly="connected"/>
 		    </div>        
         <div class="form-group col-lg-4">
-          <button @click="toggleConnect" class="form-control btn btn-success">{{ toDoConnect }}</button>
+          <button @click="toggleConnect" class="form-control btn btn-success" :disabled="disableToggleConnect">{{ toDoConnect }}</button>
         </div>        
         <template v-for="sender in senders">
           <div class="form-group col-lg-4">
-            <button @click="sendMsg(sender)" class="form-control btn btn-success">Send by {{ sender.name }}</button>
+            <button @click="sendMsg(sender)" class="form-control btn btn-success" v-show="connected">Send by {{ sender.name }}</button>
           </div>
         </template>
       </div>
@@ -83,6 +83,9 @@ const wsTalker = {
     };
   },
   computed: {
+    disableToggleConnect() {
+      return !((this.username.length > 3) || this.connected);
+    },
     allClientsActive() {
       let total = true;
       this.clients.forEach((client) => { 
@@ -139,6 +142,12 @@ const wsTalker = {
               this.applyClientsList(messageData.message);
             }
             break;
+          case 'close':
+            allowChat = false;
+            if(this.connected) {
+              this.toggleConnect();
+            }
+            break;
           // to be continue ...
         }
       }
@@ -152,15 +161,16 @@ const wsTalker = {
       }    
     },
     applyClientsList(list) {
-      let actives = [];
-      this.clients.forEach((client, idx) => {
-        if(client.active) {
-          actives.push(idx);
-        }
-      });
+      let exists = new Map(this.clients);
       this.clients.clear();
       list.forEach((client) => {
-        this.clients.set(client.id,{name : client.name, bar: 0, active : actives.includes(Number(client.id))});
+        let bar = 0;
+        let active = false;
+        if(exists.has(client.id)) {
+          bar = exists.get(client.id).bar;
+          active = exists.get(client.id).active;
+        }
+        this.clients.set(client.id,{ name : client.name, bar : bar, active : active });
       });
     },
     sendMsg(sender) {
