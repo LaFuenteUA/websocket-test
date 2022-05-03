@@ -22,7 +22,7 @@
             <td class="minitab"> <input @click="toggleClient(null)" type="checkbox" :checked="allClientsActive"/></td>
             <td class="minitab"><b>ALL</b></td>
           </tr>
-          <template v-for="(client, index) in clientsList">
+          <template v-for="(client, index) in clientsList" :key="index">
             <tr>
               <td class="minitab"><input @click="toggleClient(index)" type="checkbox" :checked="client.active"/></td>
               <td class="minitab">{{ index }}</td>
@@ -35,20 +35,8 @@
         </table>
       </div>
       <div class="col-lg-9">
-        <div class="form-group">
-		      <label for="msg-in" class="sr-only"></label>
-		      <div id="chat">
-            <table>
-            <template v-for="msg in chat">
-              <tr>
-                <td class="minitab channel">{{ msg.channel }}</td>            
-                <td class="minitab client">[{{ msg.client }}]: {{ msg.client_name }}</td>
-                <td class="minitab message">{{ msg.message }}</td>
-              </tr>
-            </template>
-            </table>
-        </div>
-		    </div>
+        <chat-list :chat="chat">
+        </chat-list>
         <div class="form-group">
 		      <label for="msg-out" class="sr-only"></label>
 		      <input v-model="message" type="text" class="form-control" id="msg-out" placeholder="Type here" v-show="connected"/>
@@ -59,7 +47,7 @@
         <div class="form-group col-lg-4">
           <button @click="toggleConnect" class="form-control btn btn-success" :disabled="disableToggleConnect">{{ toDoConnect }}</button>
         </div>        
-        <template v-for="sender in senders">
+        <template v-for="(sender, idx) in senders" :key="idx">
           <div class="form-group col-lg-4">
             <button @click="sendMsg(sender)" class="form-control btn btn-success" v-show="connected">Send by {{ sender.name }}</button>
           </div>
@@ -69,8 +57,30 @@
   </div>
 </body>
 </html>	
+
 <script type="module">
 import { apiGetSenders, apiGetClient, apiConnect, apiDisconnect, apiSend } from "./api.js";
+
+const chatModule = {
+  props: {
+    chat: {
+      type: Array,
+      required: true
+    }
+  },
+  template: `<div id="chat">
+    <table>
+      <template v-for="(msg, idx) in chat" :key="idx">
+        <tr>
+          <td class="minitab channel">{{ msg.channel }}</td>            
+          <td class="minitab client">[{{ msg.client }}] {{ msg.client_name }}</td>
+          <td class="minitab message">{{ msg.message }}</td>
+        </tr>
+      </template>
+    </table>
+  </div>`
+};
+
 const wsTalker = {
   name: "App",
   data() {
@@ -81,6 +91,9 @@ const wsTalker = {
       message : '',
       chat : [],
     };
+  },
+  components: {
+    'chat-list' : chatModule
   },
   computed: {
     disableToggleConnect() {
@@ -112,12 +125,6 @@ const wsTalker = {
     }
   },
   mounted() {
-    /*
-    this.clientAdd({id : 99, name : 'Piggy', active : false, bar: 75});
-    this.clientAdd({id : 98, name : 'Figgy', active : true,  bar: 100});
-    this.clientAdd({id : 95, name : 'Diggy', active : true,  bar: 20});
-    this.chatAdd({channel : 'http',   client_name : 'Simon', client : 87, message : 'Hello!'});
-    */
     setInterval(async () => {
       await this.clients.forEach((client) => {
         client.bar -= ((client.bar > 0) ? 0.1 : 0);
@@ -223,5 +230,8 @@ const wsTalker = {
   watch: {
   }
 };
-Vue.createApp(wsTalker).mount('#app');
+
+const app = Vue.createApp(wsTalker);
+// app.component('chat-list', chatModule);
+app.mount('#app');
 </script>
