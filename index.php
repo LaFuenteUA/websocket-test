@@ -16,24 +16,7 @@
       <div class="col-lg-12">
         <h2 id="cnx">{{ connectedStatus }}</h2>
       </div>
-      <div class="col-lg-3" id="clientlist" v-if="clients.size">
-        <table>
-          <tr>
-            <td class="minitab"> <input @click="toggleClient(null)" type="checkbox" :checked="allClientsActive"/></td>
-            <td class="minitab"><b>ALL</b></td>
-          </tr>
-          <template v-for="(client, index) in clientsList" :key="index">
-            <tr>
-              <td class="minitab"><input @click="toggleClient(index)" type="checkbox" :checked="client.active"/></td>
-              <td class="minitab">{{ index }}</td>
-              <td :class="[(currentClient == index) ? 'minitab-hi' : 'minitab']">{{ client.name }}</td>
-              <td class="minitab" style="width : 250px">
-                <div class="user-bar" :style="getClientBarStyle(index)">&nbsp</div>
-              </td>
-            </tr>
-          </template>
-        </table>
-      </div>
+      <chaters-list :clients="clients" :current-client="currentClient" @client-toggled="toggleClient($event)"></chaters-list>
       <div class="col-lg-9">
         <chat-list :chat="chat">
         </chat-list>
@@ -60,6 +43,64 @@
 
 <script type="module">
 import { apiGetSenders, apiGetClient, apiConnect, apiDisconnect, apiSend } from "./api.js";
+
+const chatersList = {
+  props: {
+    currentClient: {
+      type: Number,
+      default: 0
+    },
+    clients: {
+      type: Object,
+      required: true
+    }
+  },
+  computed: {
+    allClientsActive() {
+      let total = true;
+      this.clients.forEach((client) => { 
+        if(!client.active) {
+          total = false;
+        }
+      });
+      return total;
+    },
+    clientsList() {
+      return Object.fromEntries(this.clients);
+    }    
+  },
+  emits: ['clientToggled'],
+  methods: {
+    toggleClient(client_id) {
+      this.$emit('clientToggled',client_id);
+    },
+    getClientBarStyle(client) {
+      return { 
+        width : this.clients.get(Number(client)).bar + '%',
+        backgroundColor : 'blue'
+      };
+    }    
+  },
+  template: `
+    <div class="col-lg-3" v-if="clients.size" id="clientlist">
+      <table>
+        <tr>
+          <td class="minitab"> <input @click="toggleClient(null)" type="checkbox" :checked="allClientsActive"/></td>
+          <td class="minitab"><b>ALL</b></td>
+        </tr>
+        <template v-for="(client, index) in clientsList" :key="index">
+          <tr>
+            <td class="minitab"><input @click="toggleClient(index)" type="checkbox" :checked="client.active"/></td>
+            <td class="minitab">{{ index }}</td>
+            <td :class="[(currentClient == index) ? 'minitab-hi' : 'minitab']">{{ client.name }}</td>
+            <td class="minitab" style="width : 250px">
+              <div class="user-bar" :style="getClientBarStyle(index)">&nbsp</div>
+            </td>
+          </tr>
+        </template>
+      </table>
+    </div>`
+};
 
 const chatModule = {
   props: {
@@ -93,23 +134,12 @@ const wsTalker = {
     };
   },
   components: {
-    'chat-list' : chatModule
+    'chat-list' : chatModule,
+    'chaters-list' : chatersList
   },
   computed: {
     disableToggleConnect() {
       return !((this.username.length > 3) || this.connected);
-    },
-    allClientsActive() {
-      let total = true;
-      this.clients.forEach((client) => { 
-        if(!client.active) {
-          total = false;
-        }
-      });
-      return total;
-    },
-    clientsList() {
-      return Object.fromEntries(this.clients);
     },
     connectedStatus() {
       return this.connected ? 'Connected' : 'Offline';
@@ -219,12 +249,6 @@ const wsTalker = {
     },
     updateClientBar(client) {
       this.clients.get(client).bar = 100;
-    },
-    getClientBarStyle(client) {
-      return { 
-        width : this.clients.get(Number(client)).bar + '%',
-        backgroundColor : 'blue'
-      };
     }
   },
   watch: {
